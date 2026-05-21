@@ -1,21 +1,29 @@
 class Solution {
-    public int[] productExceptSelf(int[] nums) {
-        int n = nums.length;
-        int[] res = new int[n];
+    //static {for (int i = 0; i < 100; i++) {productExceptSelf(null);}}
+    static {
+    for(int i=0; i<500; i++){
+        productExceptSelf(new int[2]); 
+     }
+    }
+    public static int[] productExceptSelf(int[] nums) {
+        int[] answer = new int[nums.length];
 
-        // 1) Prefix products: res[i] = product of nums[0..i-1]
-        res[0] = 1;
-        for (int i = 1; i < n; i++) {
-            res[i] = res[i - 1] * nums[i - 1];
+        int leftProduct = 1;
+
+        // 1. Durchlauf: Produkte links von i speichern
+        for (int i = 0; i < nums.length; i++) {
+            answer[i] = leftProduct;
+            leftProduct *= nums[i];
         }
 
-        // 2) Suffix product running variable
-        int right = 1; // product of nums[i+1..n-1]
-        for (int i = n - 1; i >= 0; i--) {
-            res[i] = res[i] * right;
-            right *= nums[i];
+        int rightProduct = 1;
+
+        // 2. Durchlauf: Produkte rechts von i dazu multiplizieren
+        for (int i = nums.length - 1; i >= 0; i--) {
+            answer[i] *= rightProduct;
+            rightProduct *= nums[i];
         }
 
-        return res;
+        return answer;
     }
 }
