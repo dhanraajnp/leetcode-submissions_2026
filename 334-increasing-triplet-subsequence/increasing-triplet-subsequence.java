@@ -1,0 +1,17 @@
+class Solution {
+    public boolean increasingTriplet(int[] nums) {
+        int first = Integer.MAX_VALUE;
+        int second = Integer.MAX_VALUE;
+
+        for (int x : nums) {
+            if (x <= first) {
+                first = x;          // new smallest
+            } else if (x <= second) {
+                second = x;         // candidate for second smallest
+            } else {
+                return true;        // x > second => triplet found
+            }
+        }
+        return false;
+    }
+}
