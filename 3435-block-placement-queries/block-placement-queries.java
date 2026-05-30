@@ -1,119 +1,69 @@
-import java.util.*;
-
 class Solution {
-    class SegmentTreeNode {
-        SegmentTreeNode leftChild;
-        SegmentTreeNode rightChild;
-        int start;
-        int end;
-        int maxFreeSpace = 0;
-        int nearestObstacle = Integer.MAX_VALUE;
-
-        SegmentTreeNode(int start, int end, int obstaclePosition) {
-            this.start = start;
-            this.end = end;
-            this.nearestObstacle = obstaclePosition;
-            this.maxFreeSpace = obstaclePosition == Integer.MAX_VALUE ? Integer.MAX_VALUE : obstaclePosition - start;
-        }
-
-        void printTree() {
-            System.out.print("[" + start + "-" + end + ": " + nearestObstacle + ", " + maxFreeSpace);
-            if (leftChild != null) {
-                System.out.print(" -- ");
-                leftChild.printTree();
-                rightChild.printTree();
-                System.out.print(" -- " + start + "-" + end);
-            }
-            System.out.print("]");
-        }
-    }
-    
     public List<Boolean> getResults(int[][] queries) {
-        int maxRange = 0;
+        int n = Math.min(50000, 3 * queries.length);
+        int nn = Integer.highestOneBit(n);
+        int nnn = n == nn ? nn * 2 : nn * 4;
+        int[][] d = new int[nnn][3];
+        int q = nnn;
+        for (int i = 1; i < nnn; i++) {
+            if (i == Integer.highestOneBit(i)) {
+                q /= 2;
+            }
+            Arrays.fill(d[i], q);
+        }
+        List<Boolean> ans = new ArrayList<>();
         for (int[] query : queries) {
             if (query[0] == 1) {
-                maxRange = Math.max(maxRange, query[1]);
-            }
-        }
-        SegmentTreeNode root = new SegmentTreeNode(0, maxRange, Integer.MAX_VALUE);
-        List<Boolean> results = new ArrayList<>();
-        for (int[] query : queries) {
-            if (query[0] == 1) {
-                addObstacle(root, query[1]);
+                add(d, query[1]);
             } else {
-                int blockStart = query[1] - query[2];
-                if (blockStart >= root.end) {
-                    results.add(true);
-                } else {
-                    results.add(isBlockPlaceable(root, blockStart, query[2]));
-                }
+                ans.add(get(d, query[1]) >= query[2]);
             }
         }
-        return results;
+        return ans;
     }
 
-    boolean isBlockPlaceable(SegmentTreeNode root, int blockStart, int blockSize) {
-        if (root.leftChild == null && root.rightChild == null) {
-            if (blockStart >= root.end) {
-                return blockSize <= root.maxFreeSpace;
-            } else if (blockStart < root.start) {
-                return false;
+    private void add(int[][] d, int x) {
+        for (int ii = 0; ii <= 1; ii++) {
+            int i = d.length / 2 + x - 1 + ii;
+            if (ii == 0) {
+                d[i][2] = 0;
             } else {
-                return blockSize <= (root.nearestObstacle - root.start);
+                d[i][0] = 0;
+            }
+            int size = 1;
+            while (i > 1) {
+                i /= 2;
+                int[] cur = d[i];
+                int[] l = d[2 * i];
+                int[] r = d[2 * i + 1];
+                cur[0] = l[0] == size ? l[0] + r[0] : l[0];
+                cur[2] = r[2] == size ? r[2] + l[2] : r[2];
+                cur[1] = Math.max(l[2] + r[0], Math.max(Math.max(cur[0], cur[2]), Math.max(l[1], r[1])));
+                size *= 2;
             }
         }
-
-        if (root.rightChild.end <= blockStart) {
-            if (root.rightChild.maxFreeSpace >= blockSize) {
-                return true;
-            }
-        }
-        if (root.leftChild.end <= blockStart) {
-            if (root.leftChild.maxFreeSpace >= blockSize) {
-                return true;
-            }
-        } else {
-            return isBlockPlaceable(root.leftChild, blockStart, blockSize);
-        }
-        if (root.rightChild.start <= blockStart && root.rightChild.end >= blockStart) {
-            return isBlockPlaceable(root.rightChild, blockStart, blockSize);
-        }
-
-        return false;
     }
 
-    int addObstacle(SegmentTreeNode root, int obstaclePosition) {
-        if (root.end == root.start) {
-            root.nearestObstacle = (root.end < obstaclePosition && obstaclePosition < root.nearestObstacle) ? obstaclePosition : root.nearestObstacle;
-            root.maxFreeSpace = root.nearestObstacle == Integer.MAX_VALUE ? root.nearestObstacle : root.nearestObstacle - root.start;
-            return root.maxFreeSpace;
-        }
-        if (obstaclePosition <= root.start) return root.maxFreeSpace;
-        if (obstaclePosition > root.end) {
-            if (obstaclePosition < root.nearestObstacle) {
-                root.nearestObstacle = obstaclePosition;
-                if (root.leftChild == null && root.rightChild == null) {
-                    root.maxFreeSpace = (obstaclePosition - root.start);
-                } else {
-                    root.maxFreeSpace = Math.max(addObstacle(root.leftChild, obstaclePosition), addObstacle(root.rightChild, obstaclePosition));
-                }
+    private int get(int[][] d, int x) {
+        int i = d.length / 2 + x - 1;
+        int[] cur = new int[3];
+        int[] prev = new int[]{d[i][0], d[i][1], d[i][2]};
+        int size = 1;
+        while (i > 1) {
+            int iCur = i / 2;
+            if (i % 2 == 1) {
+                int[] l = d[2 * iCur];
+                int[] r = prev;
+                cur[0] = l[0] == size ? l[0] + r[0] : l[0];
+                cur[2] = r[2] == size ? r[2] + l[2] : r[2];
+                cur[1] = Math.max(l[2] + r[0], Math.max(Math.max(cur[0], cur[2]), Math.max(l[1], r[1])));
+                int[] q = cur;
+                cur = prev;
+                prev = q;
             }
-            return root.maxFreeSpace;
+            size *= 2;
+            i = iCur;
         }
-        if (root.leftChild != null && root.rightChild != null) {
-            root.maxFreeSpace = Math.max(addObstacle(root.leftChild, obstaclePosition), addObstacle(root.rightChild, obstaclePosition));
-            return root.maxFreeSpace;
-        }
-        int mid = (root.end - root.start) / 2 + root.start;
-        root.leftChild = new SegmentTreeNode(root.start, mid, root.nearestObstacle);
-        root.rightChild = new SegmentTreeNode(mid + 1, root.end, root.nearestObstacle);
-        root.maxFreeSpace = Math.max(addObstacle(root.leftChild, obstaclePosition), addObstacle(root.rightChild, obstaclePosition));
-        return root.maxFreeSpace;
-    }
-
-    public static void main(String[] args) {
-        Solution solution = new Solution();
-        int[][] queries = {{1, 5}, {2, 7, 2}, {2, 6, 2}};
-        System.out.println(solution.getResults(queries));  // Output: [false, true]
+        return prev[1];
     }
 }
