@@ -1,81 +1,85 @@
-class Node{
-    int max;
-    int prefSt,prefEnd;
-    int suffSt,suffEnd;
-    Node(int max,int prefSt,int prefEnd,int suffSt,int suffEnd){
-        this.max=max;
-        this.prefSt=prefSt;
-        this.prefEnd=prefEnd;
-        this.suffSt=suffSt;
-        this.suffEnd=suffEnd;
-    }
-}
-
-class SegmentTree{
-    Node [] tree;
-    StringBuilder s;
-    SegmentTree(String s){
-        this.s=new StringBuilder();
-        this.s.append(s);
-        tree=new Node[4*s.length()];
-        build(0,0,s.length()-1);
-    }
-    
-    Node merge(Node left,Node right,int tl,int tm,int tr){
-        int max=Integer.max(left.max,right.max);
-        int prefSt=left.prefSt;
-        int prefEnd=left.prefEnd;
-        int suffSt=right.suffSt;
-        int suffEnd=right.suffEnd;
-        
-        if(s.charAt(tm)==s.charAt(tm+1)){
-            max=Integer.max(max,right.prefEnd-left.suffSt+1);
-            if(left.prefEnd-left.prefSt+1==tm-tl+1)
-                prefEnd=right.prefEnd;
-            if(right.suffEnd-right.suffSt+1==tr-tm)
-                suffSt=left.suffSt;
-        }
-        
-        return new Node(max,prefSt,prefEnd,suffSt,suffEnd);
-    }
-    
-    void build(int pos,int tl,int tr){
-        if(tl==tr){
-            tree[pos]=new Node(1,tl,tl,tr,tr);
-        }else{
-            int tm=tl+(tr-tl)/2;
-            build(2*pos+1,tl,tm);
-            build(2*pos+2,tm+1,tr);
-            
-            tree[pos]=merge(tree[2*pos+1],tree[2*pos+2],tl,tm,tr);
-        }
-    }
-    
-    void update(int pos,int tl,int tr,int idx,char ch){
-        if(tl==tr){
-            tree[pos]=new Node(1,tl,tl,tr,tr);
-            s.setCharAt(idx,ch);
-            // System.out.println(pos);
-        }
-        else{
-            int tm=tl+(tr-tl)/2;
-            if(idx<=tm)
-                update(2*pos+1,tl,tm,idx,ch);
-            else
-                update(2*pos+2,tm+1,tr,idx,ch);
-            tree[pos]=merge(tree[2*pos+1],tree[2*pos+2],tl,tm,tr);
-        }
-    }
-}
-
 class Solution {
-    public int[] longestRepeating(String s, String queryCharacters, int[] queryIndices) {
-        int k=queryIndices.length;
-        SegmentTree tree=new SegmentTree(s);
-        for(int i=0;i<k;i++){
-            tree.update(0,0,s.length()-1,queryIndices[i],queryCharacters.charAt(i));
-            queryIndices[i]=tree.tree[0].max;
+    private static class SegmentTree {
+        private final int n;
+        private final int[] pre;
+        private final int[] suf;
+        private final int[] best;
+        private final char[] cs;
+
+        public SegmentTree(String s) {
+            n = s.length();
+            pre = new int[n << 2];
+            suf = new int[n << 2];
+            best = new int[n << 2];
+            cs = s.toCharArray();
+
+            build(1, 0, n - 1);
         }
-        return queryIndices;
+
+        private void build(int node, int l, int r) {
+            if (l == r) {
+                pre[node] = suf[node] = best[node] = 1;
+                return;
+            }
+            int mid = (l + r) >>> 1;
+            build(node << 1, l, mid);
+            build(node << 1 | 1, mid + 1, r);
+            pushUp(node, l, r);
+        }
+
+        private void pushUp(int node, int l, int r) {
+            int left = node << 1;
+            int right = node << 1 | 1;
+            int mid = (l + r) >>> 1;
+            int lenL = mid - l + 1;
+            int lenR = r - mid;
+
+            pre[node] = pre[left];
+            suf[node] = suf[right];
+            best[node] = Math.max(best[left], best[right]);
+            if (cs[mid] == cs[mid + 1]) {
+                if (pre[left] == lenL) {
+                    pre[node] = lenL + pre[right];
+                }
+                if (suf[right] == lenR) {
+                    suf[node] = lenR + suf[left];
+                }
+                best[node] = Math.max(best[node], suf[left] + pre[right]);
+            }
+        }
+
+        public void update(int i) {
+            update(1, 0, n - 1, i);
+        }
+
+        private void update(int node, int l, int r, int i) {
+            if (l == r) {
+                return;
+            }
+            int mid = (l + r) >>> 1;
+            if (i <= mid) {
+                update(node << 1, l, mid, i);
+            } else {
+                update(node << 1 | 1, mid + 1, r, i);
+            }
+            pushUp(node, l, r);
+        }
+
+        public void updateChar(char c, int i) {
+            cs[i] = c;
+        }
+    }
+
+    public int[] longestRepeating(String s, String queryCharacters, int[] queryIndices) {
+        int k = queryIndices.length;
+        SegmentTree tree = new SegmentTree(s);
+        int[] ans = new int[k];
+        for (int i = 0; i < k; i++) {
+            int index = queryIndices[i];
+            tree.updateChar(queryCharacters.charAt(i), index);
+            tree.update(index);
+            ans[i] = tree.best[1];
+        }
+        return ans;
     }
 }
