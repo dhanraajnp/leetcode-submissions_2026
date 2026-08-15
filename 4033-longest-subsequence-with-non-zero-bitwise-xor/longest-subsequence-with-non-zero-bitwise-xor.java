@@ -1,27 +1,24 @@
 class Solution {
-    
     public int longestSubsequence(int[] nums) {
+        int xor = 0;
+        boolean hasNonZero = false;
 
-        /* XOR properties --> x ^ x=0 , x ^ Y=z , x^0=x; **/
-
-        /** if any number contribute to make xor 0, just remove that number and xor of whole array now non-zero, so return n-1 */
-        
-        /** in case all the element of array is zero ---> xor never be non-zero so return zero in that case  */
-        
-       int xor=0;
-       int countZero=0;
-
-       for(int num : nums){
-            xor ^=num;
-            if(num==0){
-                countZero++;
+        for (int x : nums) {
+            if (x != 0) {
+                hasNonZero = true;
             }
-       }
 
-       if(xor != 0) return nums.length;
-       else{
-        if(countZero==nums.length) return 0;
-       }
-       return nums.length-1;
+            xor ^= x;
+        }
+
+        if (xor != 0) {
+            return nums.length;
+        }
+
+        if (hasNonZero) {
+            return nums.length - 1;
+        }
+
+        return 0;
     }
 }
