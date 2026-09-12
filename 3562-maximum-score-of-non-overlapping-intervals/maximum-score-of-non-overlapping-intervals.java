@@ -1,64 +1,142 @@
+import java.util.*;
+
 class Solution {
-    public int[] maximumWeight(List<List<Integer>> intervals) {
-        int n = intervals.size();
-        int[][] iv = new int[n][3];
-        for (int i = 0; i < n; i++)
-            for (int c = 0; c < 3; c++) iv[i][c] = intervals.get(i).get(c);
 
-        Integer[] order = new Integer[n];
-        for (int i = 0; i < n; i++) order[i] = i;
-        Arrays.sort(order, (a, b) -> iv[a][1] - iv[b][1]);
-        int[] rights = new int[n];
-        for (int p = 0; p < n; p++) rights[p] = iv[order[p]][1];
+    static class State {
+        long score;
+        int[] ids;
 
-        long[] prevScore = new long[n + 1];
-        int[][] prevIds = new int[n + 1][0];
-        for (int k = 0; k < 4; k++) {
-            long[] curScore = new long[n + 1];
-            int[][] curIds = new int[n + 1][0];
-            for (int p = 1; p <= n; p++) {
-                int i = order[p - 1];  // take next interval
-                int l = iv[i][0], w = iv[i][2];
-                int lo = 0, hi = n;  // lower_bound: intervals ending before l
-                while (lo < hi) { 
-                    int mid = (lo + hi) >>> 1; 
-                    if (rights[mid] < l) lo = mid + 1; 
-                    else hi = mid; 
-                }
-
-                long takeScore = prevScore[lo] + w;
-                int[] takeIds = insertSorted(prevIds[lo], i);
-                if (better(takeScore, takeIds, curScore[p - 1], curIds[p - 1])) {
-                    curScore[p] = takeScore; 
-                    curIds[p] = takeIds;
-                } else {
-                    curScore[p] = curScore[p - 1]; 
-                    curIds[p] = curIds[p - 1];
-                }
-            }
-            prevScore = curScore; prevIds = curIds;
+        State(long score, int[] ids) {
+            this.score = score;
+            this.ids = ids;
         }
-        return prevIds[n];
     }
 
-    private static boolean better(long s1, int[] a, long s2, int[] b) {
-        if (s1 != s2) return s1 > s2;  // higher score wins
-        int m = Math.min(a.length, b.length);
-        for (int i = 0; i < m; i++)
-            if (a[i] != b[i]) return a[i] < b[i];  // then lexicographically smaller
+    public int[] maximumWeight(List<List<Integer>> intervals) {
+        int n = intervals.size();
+
+        // [left, right, weight, originalIndex]
+        long[][] arr = new long[n][4];
+
+        for (int i = 0; i < n; i++) {
+            arr[i][0] = intervals.get(i).get(0);
+            arr[i][1] = intervals.get(i).get(1);
+            arr[i][2] = intervals.get(i).get(2);
+            arr[i][3] = i;
+        }
+
+        Arrays.sort(arr, (a, b) -> {
+            if (a[0] != b[0]) {
+                return Long.compare(a[0], b[0]);
+            }
+            return Long.compare(a[1], b[1]);
+        });
+
+        // next[i] = first interval whose left > arr[i].right
+        int[] next = new int[n];
+
+        for (int i = 0; i < n; i++) {
+            int lo = i + 1;
+            int hi = n;
+
+            while (lo < hi) {
+                int mid = lo + (hi - lo) / 2;
+
+                if (arr[mid][0] > arr[i][1]) {
+                    hi = mid;
+                } else {
+                    lo = mid + 1;
+                }
+            }
+
+            next[i] = lo;
+        }
+
+        /*
+         * dp[c][i] = best answer using intervals from i onward,
+         * while selecting at most c intervals.
+         */
+        State[][] dp = new State[5][n + 1];
+
+        for (int c = 0; c <= 4; c++) {
+            dp[c][n] = new State(0, new int[0]);
+        }
+
+        for (int i = n - 1; i >= 0; i--) {
+
+            dp[0][i] = new State(0, new int[0]);
+
+            for (int c = 1; c <= 4; c++) {
+
+                // Option 1: skip current interval
+                State skip = dp[c][i + 1];
+
+                // Option 2: take current interval
+                State rest = dp[c - 1][next[i]];
+
+                long takeScore = arr[i][2] + rest.score;
+
+                int[] takeIds = insertSorted(
+                    rest.ids,
+                    (int) arr[i][3]
+                );
+
+                State take = new State(takeScore, takeIds);
+
+                dp[c][i] = better(skip, take);
+            }
+        }
+
+        return dp[4][0].ids;
+    }
+
+    private State better(State a, State b) {
+
+        if (a.score > b.score) {
+            return a;
+        }
+
+        if (b.score > a.score) {
+            return b;
+        }
+
+        // Same score -> lexicographically smallest
+        if (lexSmaller(a.ids, b.ids)) {
+            return a;
+        }
+
+        return b;
+    }
+
+    private boolean lexSmaller(int[] a, int[] b) {
+        int len = Math.min(a.length, b.length);
+
+        for (int i = 0; i < len; i++) {
+            if (a[i] != b[i]) {
+                return a[i] < b[i];
+            }
+        }
+
         return a.length < b.length;
     }
 
-    private static int[] insertSorted(int[] ids, int x) {
-        int[] out = new int[ids.length + 1];
+    private int[] insertSorted(int[] arr, int value) {
+        int[] result = new int[arr.length + 1];
+
         int i = 0;
-        while (i < ids.length && ids[i] < x) { 
-            out[i] = ids[i]; 
-            i++; 
+
+        while (i < arr.length && arr[i] < value) {
+            result[i] = arr[i];
+            i++;
         }
-        out[i] = x;
-        for (; i < ids.length; i++) 
-            out[i + 1] = ids[i];
-        return out;
+
+        result[i] = value;
+
+        while (i < arr.length) {
+            result[i + 1] = arr[i];
+            i++;
+        }
+
+        return result;
     }
 }
